@@ -51,7 +51,7 @@
 ### 1. 克隆仓库与安装依赖
 
 ```bash
-git clone https://github.com/your-username/cyber-fish.git
+git clone https://github.com/eielyving/cyber-fish.git
 cd cyber-fish
 
 # 安装轻量依赖
