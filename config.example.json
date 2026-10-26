@@ -1,0 +1,13 @@
+{
+  "api_provider": "deepseek",
+  "base_url": "https://api.deepseek.com/v1",
+  "api_key": "",
+  "model_name": "deepseek-chat",
+  "fish_name": "大肥鱼",
+  "roaming_mode": "companion",
+  "interval_companion_sec": 15,
+  "interval_quantum_sec": 2.0,
+  "max_quantum_steps": 50,
+  "auto_open_browser": true,
+  "port": 8765
+}

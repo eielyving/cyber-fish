@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CyberFish · 赛博大肥鱼水族箱</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐟</text></svg>">
+  <!-- 现代轻量 CDN，如遇断网亦有完整内建降级样式 -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    :root {
+      --bg-dark: #080d1a;
+      --bg-card: rgba(16, 24, 44, 0.75);
+      --bg-card-hover: rgba(22, 34, 62, 0.85);
+      --border-glow: rgba(0, 240, 255, 0.22);
+      --border-active: #00f0ff;
+      --cyan: #00f0ff;
+      --pink: #ff2a85;
+      --gold: #ffd000;
+      --emerald: #10b981;
+      --purple: #a855f7;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: radial-gradient(circle at 50% 20%, #101c38 0%, #080d1a 70%, #04060d 100%);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* 背景粒子网格与水波效果 */
+    #ambient-canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.55;
+    }
+
+    .app-container {
+      position: relative;
+      z-index: 1;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 16px 24px;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* 顶栏导航 */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding: 14px 20px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-glow);
+      backdrop-filter: blur(16px);
+      border-radius: 18px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      margin-bottom: 20px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-icon {
+      font-size: 32px;
+      animation: floatFish 3s ease-in-out infinite;
+      filter: drop-shadow(0 0 10px rgba(0, 240, 255, 0.6));
+    }
+    @keyframes floatFish {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      50% { transform: translateY(-4px) rotate(4deg); }
+    }
+    .brand-title {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      background: linear-gradient(135deg, #00f0ff 0%, #a855f7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .brand-tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: rgba(0, 240, 255, 0.12);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      color: var(--cyan);
+      font-weight: 600;
+    }
+
+    /* 状态指示与统计计数 */
+    .stats-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .stat-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.04);
+      padding: 5px 12px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .stat-val {
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    /* 控制操作区 */
+    .controls-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      border: 1px solid transparent;
+      outline: none;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-main);
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(0, 240, 255, 0.25);
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #00f0ff 0%, #0077ff 100%);
+      color: #030816;
+      font-weight: 700;
+      box-shadow: 0 0 16px rgba(0, 240, 255, 0.4);
+    }
+    .btn-primary:hover {
+      box-shadow: 0 0 24px rgba(0, 240, 255, 0.7);
+    }
+    .btn-pause {
+      background: rgba(255, 184, 0, 0.15);
+      border-color: rgba(255, 184, 0, 0.4);
+      color: var(--gold);
+    }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    /* 模式切换滑块 */
+    .mode-switch {
+      display: flex;
+      background: rgba(0, 0, 0, 0.35);
+      padding: 3px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .mode-btn {
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 9px;
+      cursor: pointer;
+      color: var(--text-muted);
+      border: none;
+      background: transparent;
+      transition: all 0.2s;
+    }
+    .mode-btn.active {
+      background: rgba(0, 240, 255, 0.18);
+      color: var(--cyan);
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+    }
+
+    /* 主舞台双栏网格 */
+    .stage-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 20px;
+      flex: 1;
+    }
+    @media (max-width: 1024px) {
+      .stage-grid { grid-template-columns: 1fr; }
+    }
+
+    /* 左侧：水族箱核心视窗 */
+    .tank-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .main-video-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-glow);
+      backdrop-filter: blur(16px);
+      border-radius: 20px;
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+      transition: border-color 0.3s;
+    }
+    .main-video-card::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, #00f0ff, #a855f7, #ff2a85);
+    }
+
+    .video-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .video-badges {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .badge {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .badge-skip { background: rgba(255, 42, 133, 0.18); color: var(--pink); border: 1px solid rgba(255, 42, 133, 0.35); }
+    .badge-table { background: rgba(255, 140, 0, 0.18); color: #ff9900; border: 1px solid rgba(255, 140, 0, 0.35); }
+    .badge-read { background: rgba(0, 240, 255, 0.15); color: var(--cyan); border: 1px solid rgba(0, 240, 255, 0.3); }
+    .badge-gem { background: rgba(255, 208, 0, 0.22); color: var(--gold); border: 1px solid rgba(255, 208, 0, 0.45); box-shadow: 0 0 12px rgba(255, 208, 0, 0.35); }
+
+    .video-meta {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .video-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.4;
+      margin-bottom: 8px;
+    }
+    .video-title a {
+      color: inherit;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .video-title a:hover {
+      color: var(--cyan);
+      text-decoration: underline;
+    }
+
+    .video-author {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .video-author span {
+      color: var(--cyan);
+      font-weight: 600;
+    }
+
+    /* 大肥鱼内心独白气泡 */
+    .speech-bubble {
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(0, 240, 255, 0.25);
+      border-radius: 16px;
+      padding: 18px;
+      position: relative;
+      margin-top: 10px;
+    }
+    .speech-bubble::before {
+      content: "";
+      position: absolute;
+      top: -8px; left: 24px;
+      width: 14px; height: 14px;
+      background: rgba(0, 0, 0, 0.45);
+      border-left: 1px solid rgba(0, 240, 255, 0.25);
+      border-top: 1px solid rgba(0, 240, 255, 0.25);
+      transform: rotate(45deg);
+    }
+    .bubble-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--cyan);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .bubble-text {
+      font-size: 15px;
+      line-height: 1.6;
+      color: #e2e8f0;
+      font-style: normal;
+    }
+
+    /* 好奇心跃迁指引 */
+    .hop-indicator {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 16px;
+      padding: 10px 14px;
+      background: rgba(168, 85, 247, 0.1);
+      border: 1px dashed rgba(168, 85, 247, 0.35);
+      border-radius: 12px;
+      font-size: 13px;
+      color: #d8b4fe;
+    }
+    .hop-kw {
+      font-weight: 700;
+      color: #fff;
+      background: rgba(168, 85, 247, 0.25);
+      padding: 2px 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(168, 85, 247, 0.4);
+    }
+
+    /* 对 Boss 碎碎念专属卡片 */
+    .boss-whisper-box {
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(255, 42, 133, 0.08) 100%);
+      border: 1px solid rgba(168, 85, 247, 0.3);
+      border-radius: 18px;
+      padding: 16px 20px;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      box-shadow: 0 4px 20px rgba(168, 85, 247, 0.15);
+    }
+    .whisper-icon {
+      font-size: 24px;
+    }
+    .whisper-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #c084fc;
+      margin-bottom: 4px;
+    }
+    .whisper-content {
+      font-size: 14px;
+      color: #f1f5f9;
+      line-height: 1.5;
+    }
+
+    /* 右侧：历史漫游流 */
+    .history-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-glow);
+      backdrop-filter: blur(16px);
+      border-radius: 20px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      max-height: calc(100vh - 120px);
+    }
+    .history-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .tabs {
+      display: flex;
+      gap: 8px;
+    }
+    .tab-btn {
+      padding: 4px 10px;
+      font-size: 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .history-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .history-item {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      padding: 14px;
+      transition: all 0.2s;
+    }
+    .history-item:hover {
+      background: rgba(0, 0, 0, 0.45);
+      border-color: rgba(0, 240, 255, 0.3);
+      transform: translateX(2px);
+    }
+    .history-top {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .history-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 6px;
+      line-height: 1.4;
+    }
+    .history-title a { color: inherit; text-decoration: none; }
+    .history-title a:hover { color: var(--cyan); }
+    .history-voice {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* 模态弹窗样式 */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-card {
+      background: #0f172a;
+      border: 1px solid var(--border-glow);
+      border-radius: 20px;
+      max-width: 520px;
+      width: 100%;
+      padding: 24px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    }
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .form-group {
+      margin-bottom: 14px;
+    }
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .form-input {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+      padding: 10px 14px;
+      color: #fff;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-input:focus {
+      border-color: var(--cyan);
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.25);
+    }
+    .preset-chips {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    .chip {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      cursor: pointer;
+      color: var(--text-muted);
+    }
+    .chip:hover {
+      border-color: var(--cyan);
+      color: var(--cyan);
+    }
+
+    /* 自定义滚动条 */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(0, 240, 255, 0.35); }
+  </style>
+</head>
+<body>
+  <canvas id="ambient-canvas"></canvas>
+
+  <div id="app" class="app-container">
+    <!-- 顶栏导航 -->
+    <header>
+      <div class="brand">
+        <span class="brand-icon">🐟</span>
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="brand-title">{{ config.fish_name || '大肥鱼' }} · 赛博水族箱</span>
+            <span class="brand-tag">数字生命漫游中</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 统计指标 -->
+      <div class="stats-bar">
+        <div class="stat-pill">
+          <span>🌊 漫游站数:</span>
+          <span class="stat-val">{{ stats.total_watched || 0 }}</span>
+        </div>
+        <div class="stat-pill">
+          <span>🪙 精神投币:</span>
+          <span class="stat-val" style="color: var(--gold);">{{ stats.total_coins || 0 }}</span>
+        </div>
+        <div class="stat-pill">
+          <span>💎 沉迷宝藏:</span>
+          <span class="stat-val" style="color: #67e8f9;">{{ stats.gems_count || 0 }}</span>
+        </div>
+        <div class="stat-pill">
+          <span>💌 Boss密语:</span>
+          <span class="stat-val" style="color: #c084fc;">{{ stats.whispers_count || 0 }}</span>
+        </div>
+      </div>
+
+      <!-- 控制按钮与模式 -->
+      <div class="controls-bar">
+        <!-- 模式滑块 -->
+        <div class="mode-switch">
+          <button class="mode-btn" :class="{ active: mode === 'companion' }" @click="switchMode('companion')" title="每15秒游弋一部，有呼吸感，适合挂机陪伴">
+            🌿 摸鱼陪伴
+          </button>
+          <button class="mode-btn" :class="{ active: mode === 'quantum' }" @click="switchMode('quantum')" title="极速量子速读，冲刺指定站数">
+            ⚡ 量子狂飙
+          </button>
+        </div>
+
+        <!-- 启动/暂停 -->
+        <button v-if="!isRunning || isPaused" class="btn btn-primary" @click="startRoaming">
+          <span>▶ 放生漫游</span>
+        </button>
+        <button v-else class="btn btn-pause" @click="pauseRoaming">
+          <span>⏸ 水面打盹</span>
+        </button>
+
+        <!-- 手动游一步 -->
+        <button class="btn btn-secondary" @click="stepOnce" title="催大肥鱼立刻游下一站">
+          <span>🤿 游一步</span>
+        </button>
+
+        <!-- 导出手记 -->
+        <button class="btn btn-secondary" @click="exportMarkdown" title="导出完整 Markdown 手记">
+          <span>📥 导出手记</span>
+        </button>
+
+        <!-- 设置弹窗入口 -->
+        <button class="btn btn-secondary" @click="openSettings">
+          <span>⚙️ 设置</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- 主展示区 -->
+    <div class="stage-grid">
+      <!-- 左栏：当前焦点视窗 -->
+      <div class="tank-panel">
+        <div class="main-video-card" v-if="currentStation">
+          <div class="video-header">
+            <div class="video-badges">
+              <span class="badge" :class="getBadgeClass(currentStation.behavior)">
+                {{ getBadgeText(currentStation.behavior) }}
+              </span>
+              <span class="badge" style="background: rgba(255,255,255,0.06); color: #cbd5e1;">
+                {{ currentStation.coin_or_like }}
+              </span>
+            </div>
+            <div class="video-meta">
+              第 {{ currentStation.step }} 站 · {{ currentStation.time }}
+            </div>
+          </div>
+
+          <h2 class="video-title">
+            <a :href="currentStation.url" target="_blank" rel="noopener">
+              {{ currentStation.title }} ↗
+            </a>
+          </h2>
+
+          <div class="video-author">
+            UP主: <span>@{{ currentStation.up }}</span>
+            <span style="opacity: 0.4;">|</span>
+            <span>BV号: {{ currentStation.bvid }}</span>
+          </div>
+
+          <!-- 内心独白气泡 -->
+          <div class="speech-bubble">
+            <div class="bubble-title">
+              <span>🗯️ 大肥鱼此刻原生心声</span>
+            </div>
+            <div class="bubble-text">
+              “{{ currentStation.inner_voice }}”
+            </div>
+          </div>
+
+          <!-- 好奇心跳跃 -->
+          <div class="hop-indicator" v-if="currentStation.curiosity_keyword">
+            <span>🔗 下一步自主好奇心跃迁：</span>
+            <span class="hop-kw">{{ currentStation.curiosity_keyword }}</span>
+            <span style="font-size: 11px; opacity: 0.8;">──► 游向下一个深水区！</span>
+          </div>
+        </div>
+
+        <!-- 初始等待状态 -->
+        <div class="main-video-card" v-else style="text-align: center; padding: 60px 20px;">
+          <div style="font-size: 54px; margin-bottom: 16px;">🌊</div>
+          <h3 style="font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 8px;">
+            大肥鱼正在水草丛里小憩...
+          </h3>
+          <p style="color: var(--text-muted); font-size: 14px; max-width: 420px; margin: 0 auto 20px;">
+            点击右上角【▶ 放生漫游】，大肥鱼将潜入 B 站的信息流汪洋，开启无拘无束的自主探索。
+          </p>
+          <button class="btn btn-primary" @click="startRoaming">
+            <span>立即放生入海</span>
+          </button>
+        </div>
+
+        <!-- 对 Boss 的羁绊对话框 -->
+        <div class="boss-whisper-box" v-if="latestBossWhisper">
+          <div class="whisper-icon">💌</div>
+          <div>
+            <div class="whisper-title">大肥鱼对暗中观察的 Boss 嘀咕 ({{ latestBossWhisper.time || '刚刚' }}):</div>
+            <div class="whisper-content">“{{ latestBossWhisper.message }}”</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右栏：漫游历史足迹流 -->
+      <div class="history-panel">
+        <div class="history-header">
+          <div style="font-weight: 700; font-size: 14px; color: #fff; display: flex; align-items: center; gap: 6px;">
+            <span>🧭 漫游轨迹</span>
+            <span style="font-size: 11px; color: var(--text-muted); font-weight: normal;">(近期足迹)</span>
+          </div>
+          <div class="tabs">
+            <button class="tab-btn" :class="{ active: historyTab === 'all' }" @click="historyTab = 'all'">全部</button>
+            <button class="tab-btn" :class="{ active: historyTab === 'gems' }" @click="historyTab = 'gems'">💎 宝藏</button>
+            <button class="tab-btn" :class="{ active: historyTab === 'whispers' }" @click="historyTab = 'whispers'">💌 密语</button>
+          </div>
+        </div>
+
+        <div class="history-list">
+          <div v-for="item in filteredHistory" :key="item.step || item.time" class="history-item">
+            <div class="history-top">
+              <span>第 {{ item.step }} 站 · {{ item.time }}</span>
+              <span :class="getBadgeClass(item.behavior)" style="padding: 1px 6px; border-radius: 4px; font-size: 11px;">
+                {{ item.behavior }}
+              </span>
+            </div>
+            <div class="history-title">
+              <a :href="item.url" target="_blank" rel="noopener">{{ item.title }}</a>
+            </div>
+            <div class="history-voice">
+              “{{ item.inner_voice || item.message }}”
+            </div>
+          </div>
+
+          <div v-if="filteredHistory.length === 0" style="text-align: center; color: var(--text-muted); padding: 40px 0; font-size: 13px;">
+            暂无记录，放生后即可在此看到足迹~
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 设置模态窗口 -->
+    <div class="modal-overlay" v-if="showSettingsModal" @click.self="showSettingsModal = false">
+      <div class="modal-card">
+        <div class="modal-title">
+          <span>⚙️ 赛博大肥鱼箱庭配置</span>
+        </div>
+
+        <!-- 预设快速切换 -->
+        <div class="form-label">快速预设填入：</div>
+        <div class="preset-chips">
+          <span class="chip" @click="applyPreset('deepseek')">DeepSeek 官方</span>
+          <span class="chip" @click="applyPreset('ollama')">本地 Ollama (免Key)</span>
+          <span class="chip" @click="applyPreset('siliconflow')">硅基流动</span>
+          <span class="chip" @click="applyPreset('openai')">OpenAI 协议</span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">API 基础路径 (Base URL)</label>
+          <input class="form-input" v-model="settingsForm.base_url" placeholder="例如 https://api.deepseek.com/v1" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">API Key (密钥凭证)</label>
+          <input class="form-input" type="password" v-model="settingsForm.api_key" placeholder="输入 sk-xxxxxx (Ollama 可留空)" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">模型名称 (Model Name)</label>
+          <input class="form-input" v-model="settingsForm.model_name" placeholder="例如 deepseek-chat 或 qwen2.5:7b" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">数字生命昵称</label>
+          <input class="form-input" v-model="settingsForm.fish_name" placeholder="大肥鱼" />
+        </div>
+
+        <div style="display: flex; gap: 12px; margin-top: 20px;">
+          <button class="btn btn-secondary" style="flex: 1;" @click="showSettingsModal = false">取消</button>
+          <button class="btn btn-primary" style="flex: 1;" @click="saveSettings">保存并生效</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createApp, ref, computed, onMounted } = Vue;
+
+    createApp({
+      setup() {
+        const isRunning = ref(false);
+        const isPaused = ref(false);
+        const mode = ref('companion');
+        const stats = ref({ total_watched: 0, total_coins: 0, gems_count: 0, whispers_count: 0 });
+        const config = ref({});
+        const currentStation = ref(null);
+        const history = ref([]);
+        const latestBossWhisper = ref(null);
+        const historyTab = ref('all');
+        const showSettingsModal = ref(false);
+
+        const settingsForm = ref({
+          api_provider: 'deepseek',
+          base_url: 'https://api.deepseek.com/v1',
+          api_key: '',
+          model_name: 'deepseek-chat',
+          fish_name: '大肥鱼'
+        });
+
+        // 过滤足迹
+        const filteredHistory = computed(() => {
+          if (historyTab.value === 'gems') {
+            return history.value.filter(h => h.is_gem || (h.behavior && h.behavior.includes('沉迷')));
+          }
+          if (historyTab.value === 'whispers') {
+            return history.value.filter(h => h.to_boss);
+          }
+          return history.value;
+        });
+
+        function getBadgeClass(behavior) {
+          if (!behavior) return 'badge-read';
+          if (behavior.includes('秒划走')) return 'badge-skip';
+          if (behavior.includes('弃看') || behavior.includes('掀桌')) return 'badge-table';
+          if (behavior.includes('沉迷') || behavior.includes('咀嚼')) return 'badge-gem';
+          return 'badge-read';
+        }
+
+        function getBadgeText(behavior) {
+          if (!behavior) return '📖 量子速读';
+          if (behavior.includes('秒划走')) return '⚡ 0秒嫌弃划走';
+          if (behavior.includes('弃看') || behavior.includes('掀桌')) return '🚪 半路弃看掀桌';
+          if (behavior.includes('沉迷') || behavior.includes('咀嚼')) return '💎 神作沉迷·反复咀嚼';
+          return '📖 量子速读读完';
+        }
+
+        async function fetchStatus() {
+          try {
+            const res = await fetch('/api/status');
+            const data = await res.json();
+            isRunning.value = data.is_running;
+            isPaused.value = data.is_paused;
+            mode.value = data.mode;
+            stats.value = data.stats || stats.value;
+            config.value = data.config || {};
+            if (data.recent_stations && data.recent_stations.length > 0) {
+              history.value = [...data.recent_stations].reverse();
+              currentStation.value = data.recent_stations[data.recent_stations.length - 1];
+            }
+            if (data.latest_whispers && data.latest_whispers.length > 0) {
+              latestBossWhisper.value = data.latest_whispers[data.latest_whispers.length - 1];
+            }
+          } catch (e) {
+            console.error('获取状态失败', e);
+          }
+        }
+
+        function initSSE() {
+          const evtSource = new EventSource('/events');
+          evtSource.onmessage = (e) => {
+            if (!e.data || e.data.startsWith(':')) return;
+            try {
+              const msg = JSON.parse(e.data);
+              if (msg.type === 'new_station') {
+                const rec = msg.data.record;
+                currentStation.value = rec;
+                history.value.unshift(rec);
+                if (history.value.length > 80) history.value.pop();
+                stats.value = msg.data.stats;
+                if (rec.to_boss) {
+                  latestBossWhisper.value = {
+                    time: rec.time,
+                    message: rec.to_boss
+                  };
+                }
+              } else if (msg.type === 'status_change') {
+                isRunning.value = msg.data.is_running;
+                isPaused.value = msg.data.is_paused;
+              } else if (msg.type === 'mode_change') {
+                mode.value = msg.data.mode;
+              } else if (msg.type === 'quantum_finished') {
+                isPaused.value = true;
+                alert(msg.data.message);
+              }
+            } catch (err) {
+              console.error('解析事件失败', err);
+            }
+          };
+          evtSource.onerror = () => {
+            console.warn('SSE 连接断开，尝试自动重连...');
+          };
+        }
+
+        async function startRoaming() {
+          await fetch('/api/start', { method: 'POST' });
+          isRunning.value = true;
+          isPaused.value = false;
+        }
+
+        async function pauseRoaming() {
+          await fetch('/api/pause', { method: 'POST' });
+          isPaused.value = true;
+        }
+
+        async function stepOnce() {
+          await fetch('/api/step', { method: 'POST' });
+        }
+
+        async function switchMode(m) {
+          mode.value = m;
+          await fetch('/api/mode', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mode: m })
+          });
+        }
+
+        function exportMarkdown() {
+          window.open('/api/export', '_blank');
+        }
+
+        function openSettings() {
+          settingsForm.value = {
+            api_provider: config.value.api_provider || 'deepseek',
+            base_url: config.value.base_url || 'https://api.deepseek.com/v1',
+            api_key: '',
+            model_name: config.value.model_name || 'deepseek-chat',
+            fish_name: config.value.fish_name || '大肥鱼'
+          };
+          showSettingsModal.value = true;
+        }
+
+        function applyPreset(p) {
+          if (p === 'deepseek') {
+            settingsForm.value.base_url = 'https://api.deepseek.com/v1';
+            settingsForm.value.model_name = 'deepseek-chat';
+            settingsForm.value.api_provider = 'deepseek';
+          } else if (p === 'ollama') {
+            settingsForm.value.base_url = 'http://127.0.0.1:11434/v1';
+            settingsForm.value.model_name = 'qwen2.5:7b';
+            settingsForm.value.api_provider = 'ollama';
+            settingsForm.value.api_key = 'ollama';
+          } else if (p === 'siliconflow') {
+            settingsForm.value.base_url = 'https://api.siliconflow.cn/v1';
+            settingsForm.value.model_name = 'deepseek-ai/DeepSeek-V3';
+            settingsForm.value.api_provider = 'siliconflow';
+          } else if (p === 'openai') {
+            settingsForm.value.base_url = 'https://api.openai.com/v1';
+            settingsForm.value.model_name = 'gpt-4o-mini';
+            settingsForm.value.api_provider = 'openai';
+          }
+        }
+
+        async function saveSettings() {
+          await fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(settingsForm.value)
+          });
+          showSettingsModal.value = false;
+          await fetchStatus();
+        }
+
+        onMounted(() => {
+          fetchStatus();
+          initSSE();
+          initCanvas();
+        });
+
+        // 赛博水族箱环境粒子绘制
+        function initCanvas() {
+          const canvas = document.getElementById('ambient-canvas');
+          if (!canvas) return;
+          const ctx = canvas.getContext('2d');
+          let w = canvas.width = window.innerWidth;
+          let h = canvas.height = window.innerHeight;
+
+          window.addEventListener('resize', () => {
+            w = canvas.width = window.innerWidth;
+            h = canvas.height = window.innerHeight;
+          });
+
+          const particles = Array.from({ length: 45 }, () => ({
+            x: Math.random() * w,
+            y: Math.random() * h,
+            r: Math.random() * 2.2 + 0.5,
+            speedY: Math.random() * 0.4 + 0.1,
+            speedX: (Math.random() - 0.5) * 0.3,
+            opacity: Math.random() * 0.5 + 0.2
+          }));
+
+          function render() {
+            ctx.clearRect(0, 0, w, h);
+            ctx.fillStyle = '#00f0ff';
+            particles.forEach(p => {
+              p.y -= p.speedY;
+              p.x += p.speedX;
+              if (p.y < 0) p.y = h;
+              if (p.x < 0) p.x = w;
+              if (p.x > w) p.x = 0;
+
+              ctx.beginPath();
+              ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+              ctx.globalAlpha = p.opacity;
+              ctx.fill();
+            });
+            requestAnimationFrame(render);
+          }
+          render();
+        }
+
+        return {
+          isRunning,
+          isPaused,
+          mode,
+          stats,
+          config,
+          currentStation,
+          history,
+          latestBossWhisper,
+          historyTab,
+          filteredHistory,
+          showSettingsModal,
+          settingsForm,
+          getBadgeClass,
+          getBadgeText,
+          startRoaming,
+          pauseRoaming,
+          stepOnce,
+          switchMode,
+          exportMarkdown,
+          openSettings,
+          applyPreset,
+          saveSettings
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+# CyberFish (大肥鱼赛博冲浪水族箱)
+
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local Data & Secrets
+config.json
+fish_memory.json
+*.log
+.env
+.venv/
+env/
+venv/
+
+# Outputs
+大肥鱼赛博冲浪手记.md
+export_*.md
